@@ -1,66 +1,72 @@
 import { Priority, Task } from '../types/task.types';
+import { v4 as uuidv4 } from 'uuid';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:4000';
-
-type TaskFilters = {
+export type TaskFilters = {
   priority?: Priority;
   completed?: boolean;
 };
 
-function buildQuery(filters?: TaskFilters) {
-  if (!filters) {
-    return '';
-  }
-  const params = new URLSearchParams();
-  if (filters.priority) {
-    params.set('priority', filters.priority);
-  }
-  if (typeof filters.completed === 'boolean') {
-    params.set('completed', filters.completed ? 'true' : 'false');
-  }
-  const query = params.toString();
-  return query ? `?${query}` : '';
+const STORAGE_KEY = 'tasks';
+
+function getStoredTasks(): Task[] {
+  const data = localStorage.getItem(STORAGE_KEY);
+  return data ? JSON.parse(data) : [];
 }
 
-async function handleResponse<T>(res: Response): Promise<T> {
-  if (!res.ok) {
-    const message = await res.json().catch(() => null);
-    throw new Error((message && (message as { message?: string }).message) ?? 'API error');
-  }
-  return res.json();
+function saveStoredTasks(tasks: Task[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
 }
 
 export async function fetchTasks(filters?: TaskFilters): Promise<Task[]> {
-  const query = buildQuery(filters);
-  const response = await fetch(`${API_BASE}/api/tasks${query}`);
-  return handleResponse<Task[]>(response);
+  let tasks = getStoredTasks();
+  if (filters) {
+    if (filters.priority) {
+      tasks = tasks.filter(t => t.priority === filters.priority);
+    }
+    if (typeof filters.completed === 'boolean') {
+      tasks = tasks.filter(t => t.completed === filters.completed);
+    }
+  }
+  return tasks;
 }
 
-export async function createTask(payload: {
-  title: string;
-  description?: string;
-  priority: Priority;
-}): Promise<Task> {
-  const response = await fetch(`${API_BASE}/api/tasks`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-  return handleResponse<Task>(response);
+export async function createTask(payload: { title: string; description?: string; priority: Priority }): Promise<Task> {
+  const tasks = getStoredTasks();
+  const newTask: Task = {
+    id: uuidv4(),
+    title: payload.title,
+    description: payload.description,
+    priority: payload.priority,
+    completed: false,
+    createdAt: new Date().toISOString(),
+  };
+  saveStoredTasks([newTask, ...tasks]);
+  return newTask;
 }
 
-export async function updateTask(id: string, updates: Partial<{ title: string; priority: Priority; completed: boolean }>): Promise<Task> {
-  const response = await fetch(`${API_BASE}/api/tasks/${id}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates)
+export async function updateTask(
+    id: string,
+    updates: Partial<{ title: string; priority: Priority; completed: boolean }>
+): Promise<Task> {
+  const tasks = getStoredTasks();
+  const updatedTasks = tasks.map(task => {
+    if (task.id === id) {
+      const updated = { ...task, ...updates };
+      if ('completed' in updates) {
+        updated.completedAt = updates.completed ? new Date().toISOString() : undefined;
+      }
+      return updated;
+    }
+    return task;
   });
-  return handleResponse<Task>(response);
+  saveStoredTasks(updatedTasks);
+  const updatedTask = updatedTasks.find(t => t.id === id)!;
+  return updatedTask;
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const response = await fetch(`${API_BASE}/api/tasks/${id}`, { method: 'DELETE' });
-  await handleResponse<void>(response);
+  const tasks = getStoredTasks();
+  saveStoredTasks(tasks.filter(t => t.id !== id));
 }
 
 export interface Stats {
@@ -71,6 +77,11 @@ export interface Stats {
 }
 
 export async function fetchStats(): Promise<Stats> {
-  const response = await fetch(`${API_BASE}/api/tasks/stats`);
-  return handleResponse<Stats>(response);
+  const tasks = getStoredTasks();
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  const pending = total - completed;
+  const byPriority: Record<Priority, number> = { low: 0, medium: 0, high: 0, urgent: 0 };
+  tasks.forEach(t => { byPriority[t.priority]++; });
+  return { total, completed, pending, byPriority };
 }

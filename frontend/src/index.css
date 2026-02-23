@@ -198,7 +198,7 @@ button.ghost {
 .task-main {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 2rem;
 }
 
 .task-main h3 {
@@ -210,13 +210,14 @@ button.ghost {
   border-radius: 999px;
   background: transparent;
   color: #fff;
-  height: 36px;
-  width: 72px;
+  height: 42px;
+  width: 80px;
+  margin-left: 67%;
 }
 
 .task-controls {
   display: flex;
-  gap: 0.5rem;
+  justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
 }

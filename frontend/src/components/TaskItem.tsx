@@ -18,22 +18,22 @@ export default function TaskItem({ task, onToggleComplete, onPriorityChange, onD
   return (
     <article className={`task-item ${task.completed ? 'is-completed' : ''}`}>
       <div className="task-main">
-        <button
-          type="button"
-          className="task-toggle"
-          aria-pressed={task.completed}
-          onClick={() => onToggleComplete(task)}
-        >
-          {task.completed ? 'Undo' : 'Done'}
-        </button>
+        <span className={`badge badge-${task.priority}`}>{badgeLabels[task.priority]}</span>
         <div>
           <h3>{task.title}</h3>
           {task.description && <p className="muted">{task.description}</p>}
         </div>
+        <button
+            type="button"
+            className="task-toggle"
+            aria-pressed={task.completed}
+            onClick={() => onToggleComplete(task)}
+        >
+          {task.completed ? 'Undo' : 'Done'}
+        </button>
       </div>
       <div className="task-controls">
-        <span className={`badge badge-${task.priority}`}>{badgeLabels[task.priority]}</span>
-        <label className="priority-select">
+        <div className="filter-field">
           <span className="sr-only">Priority</span>
           <select
             value={task.priority}
@@ -45,7 +45,7 @@ export default function TaskItem({ task, onToggleComplete, onPriorityChange, onD
               </option>
             ))}
           </select>
-        </label>
+        </div>
         <button type="button" className="ghost" onClick={() => onDelete(task.id)}>
           Delete
         </button>
